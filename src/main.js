@@ -14,6 +14,7 @@ const state = {
   sharing: JSON.parse(localStorage.getItem(SHARE_KEY) || "null"),
   view: "senior",
   topic: localStorage.getItem("yiloi-topic-v1") || "",
+  focusMode: false,
   listening: false,
   paused: false,
   startedAt: Date.now(),
@@ -232,6 +233,33 @@ function startListening() {
   render();
 }
 
+function renderFocusMode() {
+  const lastAgent = [...state.messages].reverse().find((message) => message.role === "agent");
+  const lastUser = [...state.messages].reverse().find((message) => message.role === "user");
+  app.innerHTML = `<div class="focus-shell">
+    <header class="focus-topbar">
+      <button id="exit-focus" class="focus-back">← 返回完整畫面</button>
+      <span class="brand"><span class="brand-mark">憶</span>憶旅</span>
+      <span class="focus-time">本節 ${Math.floor((Date.now() - state.startedAt) / 60000)} / 45 分鐘</span>
+    </header>
+    <main class="focus-main">
+      <p class="eyebrow">${state.topic ? `主題：${escapeHtml(memoryTopics.find(([id]) => id === state.topic)?.[1] || "")}` : "廣東話語音對話"}</p>
+      <div class="focus-orb ${state.listening ? "is-listening" : ""}"><span>${state.listening ? "■" : "🎙"}</span></div>
+      <h1>${state.listening ? "我聽緊你講…" : "可以同我講嘢喇"}</h1>
+      <p class="focus-hint">${state.listening ? "講完之後，我會耐心聽你講完。" : "撳住下面個咪高風，慢慢講就得。"}</p>
+      ${lastUser ? `<div class="focus-transcript"><span>你剛才講：</span><p>「${escapeHtml(lastUser.text)}」</p></div>` : ""}
+      ${lastAgent ? `<div class="focus-agent"><span>憶旅</span><p>${escapeHtml(lastAgent.text)}</p><button id="focus-speak" class="speak-button">🔊 再讀一次</button></div>` : ""}
+      <button id="focus-listen" class="focus-mic ${state.listening ? "active" : ""}"><span>${state.listening ? "■" : "🎙"}</span><strong>${state.listening ? "停止聆聽" : "按一下開始講"}</strong></button>
+      <div class="focus-actions"><button id="focus-rest" class="secondary">休息一陣</button><button id="focus-end" class="text-button">結束今次對話</button></div>
+    </main>
+  </div>`;
+  document.querySelector("#exit-focus").addEventListener("click", () => { state.focusMode = false; render(); });
+  document.querySelector("#focus-listen").addEventListener("click", startListening);
+  document.querySelector("#focus-speak").addEventListener("click", () => speak(lastAgent?.text || ""));
+  document.querySelector("#focus-rest").addEventListener("click", () => alert("好，我哋休息一陣先。準備好再撳咪高風。"));
+  document.querySelector("#focus-end").addEventListener("click", () => { state.focusMode = false; render(); });
+}
+
 function renderCaregiverDashboard() {
   const storyStatus = state.story?.confirmed ? "已確認" : state.story ? "待長者確認" : "未開始";
   const safetyStatus = state.paused ? "需要即時關注" : "目前沒有通知";
@@ -271,6 +299,10 @@ function renderCaregiverDashboard() {
 }
 
 function render() {
+  if (state.focusMode) {
+    renderFocusMode();
+    return;
+  }
   if (state.view === "caregiver") {
     renderCaregiverDashboard();
     return;
@@ -292,6 +324,7 @@ function render() {
         <div class="top-actions">
           <button id="load-demo" class="demo-button">▶ Demo 示範</button>
           <button id="caregiver-view" class="dashboard-button">照顧者模式</button>
+          <button id="focus-view" class="focus-button">全屏傾偈</button>
           <span class="timer">本節 ${elapsed} / 45 分鐘</span>
         </div>
       </header>
@@ -423,6 +456,7 @@ function render() {
     render();
   });
   document.querySelector("#caregiver-view").addEventListener("click", () => { state.view = "caregiver"; render(); });
+  document.querySelector("#focus-view").addEventListener("click", () => { state.focusMode = true; render(); });
   document.querySelector("#load-demo").addEventListener("click", () => {
     if (state.messages.length && !confirm("載入 Demo 內容會取代目前逐字稿，是否繼續？")) return;
     loadDemo();
