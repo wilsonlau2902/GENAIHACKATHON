@@ -23,6 +23,16 @@ npm run dev
 
 請使用 Chrome 測試粵語語音功能；瀏覽器可能會要求允許咪高風。
 
+## 發布到 GitHub Pages
+
+這個 repository 已附上 GitHub Actions 部署設定。將 `main` push 到 GitHub 後，
+Actions 會自動建置並發布到：
+
+`https://wilsonlau2902.github.io/GENAIHACKATHON/`
+
+第一次使用時，請在 GitHub repository 的 **Settings → Pages → Build and deployment**
+將 Source 設為 **GitHub Actions**。部署完成後，其他人就可以開啟公開網址。
+
 ## 目前限制
 
 本版本沒有連接 LLM、後端資料庫或真正的照顧者通知。所有對話回應由 [agent-system-prompt.js](./src/agent-system-prompt.js) 的原則及本地 Mock 邏輯產生，逐字稿只保存在目前瀏覽器。
