@@ -12,6 +12,7 @@ const state = {
   photo: JSON.parse(localStorage.getItem("yiloi-photo-v1") || "null"),
   story: JSON.parse(localStorage.getItem(STORY_KEY) || "null"),
   sharing: JSON.parse(localStorage.getItem(SHARE_KEY) || "null"),
+  view: "senior",
   listening: false,
   paused: false,
   startedAt: Date.now(),
@@ -210,7 +211,49 @@ function startListening() {
   render();
 }
 
+function renderCaregiverDashboard() {
+  const storyStatus = state.story?.confirmed ? "已確認" : state.story ? "待長者確認" : "未開始";
+  const safetyStatus = state.paused ? "需要即時關注" : "目前沒有通知";
+  app.innerHTML = `<div class="shell dashboard">
+    <header class="topbar">
+      <div><span class="brand-mark">憶</span><span class="brand">憶旅</span></div>
+      <button id="back-to-senior" class="secondary">返回長者模式</button>
+    </header>
+    <section class="dashboard-hero">
+      <p class="eyebrow">照顧者視角・Demo</p>
+      <h1>早晨，陳姑娘</h1>
+      <p>以下係阿梅婆婆主動同憶旅分享嘅內容。只顯示已獲同意嘅摘要。</p>
+    </section>
+    <section class="status-grid">
+      <article class="status-card"><span class="status-icon">◷</span><small>最近對話</small><strong>今日 10:24</strong><span class="status-good">已完成</span></article>
+      <article class="status-card"><span class="status-icon">♡</span><small>故事進度</small><strong>${storyStatus}</strong><span class="status-good">${state.story?.confirmed ? "可以分享" : "等待審閱"}</span></article>
+      <article class="status-card ${state.paused ? "attention" : ""}"><span class="status-icon">!</span><small>安全狀態</small><strong>${safetyStatus}</strong><span>${state.paused ? "請聯絡長者" : "一切正常"}</span></article>
+    </section>
+    <section class="dashboard-panel">
+      <div class="panel-heading"><div><p class="eyebrow">最近完成</p><h2>阿梅婆婆的故事</h2></div><span class="ai-label">長者已確認</span></div>
+      ${state.story?.confirmed ? `<p class="dashboard-quote">「${escapeHtml(state.story.text.slice(0, 90))}${state.story.text.length > 90 ? "…" : ""}」</p>
+        <div class="dashboard-actions"><button id="dashboard-preview" class="primary">預覽故事</button><button id="dashboard-message" class="secondary">留一句話</button></div>` : `<div class="dashboard-empty">長者完成審閱後，確認嘅故事會顯示喺呢度。</div>`}
+    </section>
+    <section class="dashboard-panel">
+      <div class="panel-heading"><div><p class="eyebrow">回憶資料</p><h2>相片及內容</h2></div><span class="step">${state.photo ? "1 張相片" : "未有相片"}</span></div>
+      ${state.photo ? `<div class="dashboard-memory"><img src="${state.photo.image}" alt="${escapeHtml(state.photo.title || "回憶相片")}" /><div><h3>${escapeHtml(state.photo.title || "未命名回憶")}</h3><p>${escapeHtml(state.photo.caption || "未有補充內容。")}</p><span class="status-good">由長者選擇分享</span></div></div>` : `<div class="dashboard-empty">長者尚未上載相片。</div>`}
+    </section>
+    <p class="dashboard-note">Demo 介面：真實版本會根據長者同意及機構權限顯示資料。</p>
+  </div>`;
+  document.querySelector("#back-to-senior").addEventListener("click", () => { state.view = "senior"; render(); });
+  document.querySelector("#dashboard-preview")?.addEventListener("click", () => {
+    state.view = "senior";
+    render();
+    document.querySelector(".story-section")?.scrollIntoView({ behavior: "smooth" });
+  });
+  document.querySelector("#dashboard-message")?.addEventListener("click", () => alert("家人留言功能（Demo）"));
+}
+
 function render() {
+  if (state.view === "caregiver") {
+    renderCaregiverDashboard();
+    return;
+  }
   const elapsed = Math.floor((Date.now() - state.startedAt) / 60000);
   const messages = state.messages.length
     ? state.messages.map((message) => `<article class="message ${message.role}">
@@ -226,6 +269,7 @@ function render() {
         <div><span class="brand-mark">憶</span><span class="brand">憶旅</span></div>
         <div class="top-actions">
           <button id="load-demo" class="demo-button">▶ Demo 示範</button>
+          <button id="caregiver-view" class="dashboard-button">照顧者模式</button>
           <span class="timer">本節 ${elapsed} / 45 分鐘</span>
         </div>
       </header>
@@ -339,6 +383,7 @@ function render() {
     </div>`;
 
   document.querySelector("#listen").addEventListener("click", startListening);
+  document.querySelector("#caregiver-view").addEventListener("click", () => { state.view = "caregiver"; render(); });
   document.querySelector("#load-demo").addEventListener("click", () => {
     if (state.messages.length && !confirm("載入 Demo 內容會取代目前逐字稿，是否繼續？")) return;
     loadDemo();
