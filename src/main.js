@@ -13,6 +13,7 @@ const state = {
   story: JSON.parse(localStorage.getItem(STORY_KEY) || "null"),
   sharing: JSON.parse(localStorage.getItem(SHARE_KEY) || "null"),
   view: "senior",
+  topic: localStorage.getItem("yiloi-topic-v1") || "",
   listening: false,
   paused: false,
   startedAt: Date.now(),
@@ -89,6 +90,26 @@ function saveStory() {
 
 function saveSharing() {
   localStorage.setItem(SHARE_KEY, JSON.stringify(state.sharing));
+}
+
+const memoryTopics = [
+  ["childhood", "細個嘅生活", "街坊、玩伴，同屋企嘅日子", "☀"],
+  ["family", "屋企人", "一餐飯、一句說話，一個重要嘅人", "♡"],
+  ["work", "第一份工", "人生第一步，做過最難忘嘅工作", "▣"],
+  ["festival", "節日回憶", "過年、團年飯，同最熱鬧嘅時光", "✦"],
+  ["proud", "最自豪嘅事", "你最想留俾家人知道嘅故事", "★"],
+  ["message", "留俾家人的話", "想對屋企人講，但一直未講出口嘅話", "✉"],
+];
+
+function selectTopic(id) {
+  state.topic = id;
+  localStorage.setItem("yiloi-topic-v1", id);
+  const topic = memoryTopics.find(([topicId]) => topicId === id);
+  if (topic && state.messages.length <= 1) {
+    addMessage("agent", `好呀，我哋就由「${topic[1]}」開始。你最先諗起邊一件事？`);
+  } else {
+    render();
+  }
 }
 
 function draftStory() {
@@ -255,6 +276,7 @@ function render() {
     return;
   }
   const elapsed = Math.floor((Date.now() - state.startedAt) / 60000);
+  const selectedTopic = memoryTopics.find(([id]) => id === state.topic);
   const messages = state.messages.length
     ? state.messages.map((message) => `<article class="message ${message.role}">
         <span class="role">${message.role === "agent" ? "憶旅" : "我"}</span>
@@ -275,8 +297,19 @@ function render() {
       </header>
       <section class="intro">
         <p class="eyebrow">廣東話 AI 回憶助手</p>
-        <h1>今日想由邊段回憶開始？</h1>
+        <h1>${selectedTopic ? `今日講吓：${selectedTopic[1]}` : "今日想由邊段回憶開始？"}</h1>
         <p>我係 AI 助手，唔係真人。放心，我唔會問銀行資料、身份證號碼或者地址。</p>
+      </section>
+      <section class="topic-section">
+        <div class="section-heading">
+          <div><p class="eyebrow">揀一個你想講嘅方向</p><h2>由邊段回憶開始？</h2></div>
+          ${selectedTopic ? `<button id="change-topic" class="text-button">更換主題</button>` : ""}
+        </div>
+        <div class="topic-grid">
+          ${memoryTopics.map(([id, title, description, icon]) => `<button class="topic-card ${id === state.topic ? "selected" : ""}" data-topic="${id}">
+            <span class="topic-icon">${icon}</span><strong>${title}</strong><small>${description}</small>
+          </button>`).join("")}
+        </div>
       </section>
       ${state.paused ? `<section class="safety-alert" role="alert">
         <strong>我哋先停一停</strong>
@@ -383,6 +416,12 @@ function render() {
     </div>`;
 
   document.querySelector("#listen").addEventListener("click", startListening);
+  document.querySelectorAll("[data-topic]").forEach((button) => button.addEventListener("click", () => selectTopic(button.dataset.topic)));
+  document.querySelector("#change-topic")?.addEventListener("click", () => {
+    state.topic = "";
+    localStorage.removeItem("yiloi-topic-v1");
+    render();
+  });
   document.querySelector("#caregiver-view").addEventListener("click", () => { state.view = "caregiver"; render(); });
   document.querySelector("#load-demo").addEventListener("click", () => {
     if (state.messages.length && !confirm("載入 Demo 內容會取代目前逐字稿，是否繼續？")) return;

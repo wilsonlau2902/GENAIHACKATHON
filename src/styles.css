@@ -22,6 +22,13 @@ h1 { max-width: 680px; margin: 8px 0 12px; color: #24574f; font-size: clamp(2rem
 h2 { margin: 4px 0; color: #24574f; font-size: 1.6rem; }
 h3 { margin: 10px 0 6px; color: #24574f; font-size: 1.35rem; }
 .intro p { color: #6d6860; line-height: 1.6; }
+.topic-section { margin: 12px 0 24px; padding: 22px; border: 1px solid #e4ddd2; border-radius: 22px; background: #fff; }
+.topic-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+.topic-card { display: flex; min-height: 150px; flex-direction: column; align-items: flex-start; justify-content: center; gap: 8px; padding: 17px; border: 2px solid #e8e0d5; border-radius: 16px; color: #24574f; background: #fffaf4; text-align: left; }
+.topic-card:hover, .topic-card.selected { border-color: #27665b; background: #e5f3e8; }
+.topic-card strong { font-size: 1rem; }
+.topic-card small { color: #6d6860; font-size: .75rem; line-height: 1.45; }
+.topic-icon { display: grid; width: 38px; height: 38px; place-items: center; border-radius: 50%; color: #b65f3e; background: #f2e5d8; font-size: 1.3rem; }
 .conversation { display: grid; gap: 14px; min-height: 220px; padding: 18px 0; }
 .message { max-width: 80%; padding: 18px 20px; border-radius: 22px; box-shadow: 0 2px 8px #3329160e; }
 .message.agent { justify-self: start; background: #fff; border-top-left-radius: 5px; }
@@ -125,6 +132,8 @@ footer { display: flex; justify-content: space-between; gap: 12px; margin-top: 1
   .top-actions { align-items: flex-end; flex-direction: column-reverse; gap: 5px; }
   .status-grid { grid-template-columns: 1fr; }
   .dashboard-memory { align-items: flex-start; flex-direction: column; }
+  .topic-grid { grid-template-columns: repeat(2, 1fr); }
+  .topic-card { min-height: 140px; padding: 13px; }
   .intro { padding-top: 34px; }
   .message { max-width: 92%; }
   .secondary { margin: 10px 0 0; }
