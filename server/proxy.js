@@ -6,6 +6,16 @@ dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 3001;
+const RATE_LIMIT_WINDOW_MS = 60 * 60 * 1000;
+const configuredRateLimit = Number.parseInt(process.env.RATE_LIMIT_MAX || '10', 10);
+const RATE_LIMIT_MAX = Number.isInteger(configuredRateLimit) && configuredRateLimit > 0 ? configuredRateLimit : 10;
+const FRONTEND_ORIGINS = new Set(
+  (process.env.FRONTEND_ORIGINS || 'http://localhost:5173,http://127.0.0.1:5173,https://wilsonlau2902.github.io')
+    .split(',')
+    .map((origin) => origin.trim())
+    .filter(Boolean),
+);
+const requestCounts = new Map();
 // 可配置：支援多種提供者（OpenAI、第三方），預設為 OpenAI
 const API_BASE_URL = (process.env.API_BASE_URL || 'https://api.openai.com').replace(/\/+$/,'');
 const API_CHAT_PATH = process.env.API_CHAT_PATH || '/v1/chat/completions';
@@ -18,13 +28,41 @@ if (!API_KEY) {
 }
 
 app.use(express.json({ limit: '1mb' }));
+app.set('trust proxy', 1);
 app.use((req, res, next) => {
-  res.setHeader('Access-Control-Allow-Origin', '*');
+  const origin = req.get('Origin');
+  if (origin && FRONTEND_ORIGINS.has(origin)) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+    res.setHeader('Vary', 'Origin');
+  }
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
   if (req.method === 'OPTIONS') return res.sendStatus(204);
   next();
 });
+
+function limitChatRequests(req, res, next) {
+  const now = Date.now();
+  const clientIp = req.ip;
+  let entry = requestCounts.get(clientIp);
+  if (!entry || now >= entry.resetAt) {
+    entry = { count: 0, resetAt: now + RATE_LIMIT_WINDOW_MS };
+    requestCounts.set(clientIp, entry);
+  }
+  if (entry.count >= RATE_LIMIT_MAX) {
+    res.setHeader('Retry-After', Math.ceil((entry.resetAt - now) / 1000));
+    return res.status(429).json({ error: 'rate_limit_exceeded', details: 'AI request limit reached. Try again later.' });
+  }
+  entry.count += 1;
+  next();
+}
+
+setInterval(() => {
+  const now = Date.now();
+  for (const [ip, entry] of requestCounts) {
+    if (now >= entry.resetAt) requestCounts.delete(ip);
+  }
+}, RATE_LIMIT_WINDOW_MS).unref();
 
 // 健康檢查
 app.get('/api/health', (req, res) => {
@@ -32,7 +70,7 @@ app.get('/api/health', (req, res) => {
 });
 
 // POST /api/chat -> 將 OpenAI chat-format 轉換並轉發到目標 API（支援 Gemini）
-app.post('/api/chat', async (req, res) => {
+app.post('/api/chat', limitChatRequests, async (req, res) => {
   try {
     const target = `${API_BASE_URL}${API_CHAT_PATH}`;
     const headers = { 'Content-Type': 'application/json' };

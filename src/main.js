@@ -41,7 +41,7 @@ function escapeHtml(value) {
 }
 
 // 前端呼叫代理設定（可在 dev 時覆寫 window.PROXY_URL）
-const PROXY_URL = window.PROXY_URL || 'http://localhost:3001/api/chat';
+const PROXY_URL = window.PROXY_URL || import.meta.env.VITE_PROXY_URL || 'http://localhost:3001/api/chat';
 
 // Send staff-only assistance requests to the server-side AI proxy.
 async function queryProxy(messages) {

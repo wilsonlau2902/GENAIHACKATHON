@@ -3,7 +3,7 @@
 憶旅是一個手機／平板優先的廣東話長者回憶訪談原型。長者由工作人員真人訪問；AI 不會直接與長者對話。
 
 - 工作人員選擇訪談主題，與長者面對面交談
-- 選擇說話者後，以瀏覽器 Web Speech API (`zh-HK`) 即時轉錄，或手動輸入逐字稿
+- 預設由訪問者開始，以瀏覽器 Web Speech API (`zh-HK`) 即時轉錄；可在錄音期間切換說話者，或手動輸入逐字稿
 - 工作人員可按需請 AI 提供最多三條可選追問
 - 結束訪談後，AI 根據逐字稿生成摘要草稿，供工作人員和長者核對、修改及確認
 - 開始語音轉錄或傳送逐字稿給 AI 前，介面會要求訪問者及長者同意
@@ -42,4 +42,4 @@ Actions 會自動建置並發布到：
 npm run start-server
 ```
 
-不要提交 `.env` 或把 API key 放入前端程式碼。部署時請在主機的環境變數／Secret 設定中提供 API key。
+不要提交 `.env` 或把 API key 放入前端程式碼。部署代理時請在主機的環境變數／Secret 設定中提供 API key，並設定 `FRONTEND_ORIGINS` 為允許的網站來源（逗號分隔）及 `RATE_LIMIT_MAX`（預設每個 IP 每小時 10 次 AI 請求）。GitHub Pages 的 repository variable `VITE_PROXY_URL` 應設定為公開代理的完整 `/api/chat` URL；此值不是秘密。設定後重新執行 Pages 部署。
