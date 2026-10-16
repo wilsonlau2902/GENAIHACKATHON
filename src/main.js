@@ -295,8 +295,8 @@ function loadDemo() {
     sharePermissions: { story: true, quote: true, photo: true, details: true },
   };
   state.sharing = null;
-  state.story = null;
   state.suggestions = [];
+  state.workflowStage = 3;
   state.interviewEnded = false;
   state.paused = false;
   state.status = "已載入示範逐字稿。呢啲係示範內容，唔係實際訪談。";
