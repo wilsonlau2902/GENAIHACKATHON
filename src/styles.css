@@ -213,6 +213,10 @@ button:disabled { cursor: not-allowed; opacity: .55; }
 .recording-segment > span { display: block; margin-bottom: 5px; color: #718078; font-size: .68rem; font-weight: 700; }
 .recording-segment textarea { width: 100%; padding: 8px; border: 1px solid #dfe3df; border-radius: 6px; color: #394b42; background: #fbfcfa; font: inherit; font-size: .78rem; line-height: 1.45; resize: vertical; }
 .recording-segment .text-button { margin-top: 3px; font-size: .7rem; }
+.share-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 12px; }
+.share-actions button { margin: 0; }
+.share-actions .secondary { padding: 9px 12px; font-size: .76rem; }
+.share-actions .text-button { padding: 6px 2px; font-size: .74rem; }
 .caregiver-card { padding: 22px; border: 1px solid #e3e1da; border-radius: 12px; background: #fff; }
 .caregiver-card h2 { font-size: 1.35rem; }
 .caregiver-card p { line-height: 1.55; }
