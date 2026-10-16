@@ -191,13 +191,17 @@ button:disabled { cursor: not-allowed; opacity: .55; }
 .dashboard-wide-card.interview-panel, .dashboard-wide-card.followup-section, .dashboard-wide-card.story-section, .dashboard-wide-card.share-section, .dashboard-wide-card.memory-section { border-color: #e3e1da; background: #fff; }
 .dashboard-wide-card .conversation { max-height: 320px; overflow: auto; padding: 12px 0; }
 .dashboard-wide-card .story-review { margin-top: 12px; }
+.recording-action-card { display: grid; justify-items: center; margin: 20px 0 14px; padding: 28px 20px; border: 2px solid #cfe0d3; border-radius: 16px; text-align: center; background: #f5faf5; }
+.recording-action-icon { display: grid; width: 64px; height: 64px; place-items: center; margin-bottom: 10px; border-radius: 50%; color: #fff; background: #315d4c; font-size: 1.7rem; }
+.recording-action-card h3 { margin: 0; color: #294d3e; font-size: 1.2rem; }
+.recording-action-card p { margin: 7px 0 16px; color: #68776e; font-size: .85rem; }
 .recording-review { margin: 18px 0; padding: 16px; border: 1px solid #dfe6e0; border-radius: 10px; background: #f7faf7; }
 .recording-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
 .recording-heading .eyebrow { margin: 0 0 4px; }
 .recording-badge { padding: 5px 8px; border-radius: 6px; color: #587064; background: #e6f0e8; font-size: .68rem; font-weight: 700; }
 .recording-controls { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; margin-top: 12px; }
 .recording-controls .primary, .recording-controls .secondary { margin: 0; }
-.recording-start-button { min-width: 150px; min-height: 48px; font-size: .9rem; }
+.recording-start-button { min-width: 190px; min-height: 56px; border-radius: 10px; font-size: 1.05rem; }
 .recording-controls > span { color: #69756e; font-size: .74rem; font-variant-numeric: tabular-nums; }
 .fake-waveform { position: relative; display: flex; align-items: center; gap: 3px; height: 55px; margin-top: 16px; padding: 0 5px; overflow: hidden; border-radius: 7px; background: #e9f1eb; }
 .fake-waveform i { display: block; flex: 1; min-width: 2px; border-radius: 3px; background: #7ea38c; }
