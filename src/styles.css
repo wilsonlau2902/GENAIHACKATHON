@@ -187,6 +187,10 @@ button:disabled { cursor: not-allowed; opacity: .55; }
 .stage-tabs button.active { color: #30443b; background: #fff; box-shadow: 0 1px 3px #5c5a5118; }
 .stage-tabs button.active b { color: #fff; background: #304b3f; }
 .caregiver-stage-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+.dashboard-wide-card { margin-bottom: 18px; }
+.dashboard-wide-card.interview-panel, .dashboard-wide-card.followup-section, .dashboard-wide-card.story-section, .dashboard-wide-card.share-section, .dashboard-wide-card.memory-section { border-color: #e3e1da; background: #fff; }
+.dashboard-wide-card .conversation { max-height: 320px; overflow: auto; padding: 12px 0; }
+.dashboard-wide-card .story-review { margin-top: 12px; }
 .caregiver-card { padding: 22px; border: 1px solid #e3e1da; border-radius: 12px; background: #fff; }
 .caregiver-card h2 { font-size: 1.35rem; }
 .caregiver-card p { line-height: 1.55; }
