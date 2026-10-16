@@ -6,6 +6,7 @@ const PHOTO_KEY = "yiloi-interview-photo-v1";
 const STORY_KEY = "yiloi-interview-summary-v1";
 const SHARE_KEY = "yiloi-interview-share-v1";
 const INTERVIEW_ENDED_KEY = "yiloi-interview-ended-v1";
+const RECORDING_KEY = "yiloi-interview-recording-v1";
 const supportsSpeech = "SpeechRecognition" in window || "webkitSpeechRecognition" in window;
 const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 
@@ -28,6 +29,10 @@ const state = {
   suggestionsLoading: false,
   summaryLoading: false,
   interviewEnded: localStorage.getItem(INTERVIEW_ENDED_KEY) === "true",
+  recording: JSON.parse(localStorage.getItem(RECORDING_KEY) || "null"),
+  recordingPlaying: false,
+  recordingPosition: 0,
+  recordingTimer: null,
   startedAt: Date.now(),
   recognition: null,
 };
@@ -38,6 +43,70 @@ function escapeHtml(value) {
   return value.replace(/[&<>"']/g, (character) => ({
     "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#039;",
   }[character]));
+}
+
+function saveRecording() {
+  localStorage.setItem(RECORDING_KEY, JSON.stringify(state.recording));
+}
+
+function getRecordingSegments() {
+  const messages = state.messages.length ? state.messages : [
+    { role: "staff", text: "阿梅婆婆，你仲記唔記得十八歲嗰陣第一份工係做咩？" },
+    { role: "elderly", text: "我嗰陣喺深水埗做車衣，第一份人工好記得。" },
+    { role: "staff", text: "第一份人工，你有冇買啲嘢俾屋企人？" },
+  ];
+  return messages.slice(0, 12).map((message, index) => ({
+    id: `${Date.now()}-${index}`,
+    role: message.role,
+    text: message.text,
+    start: index * 8,
+    end: (index + 1) * 8,
+    corrected: false,
+  }));
+}
+
+function createFakeRecording() {
+  const segments = getRecordingSegments();
+  state.recording = {
+    demo: true,
+    duration: segments.length * 8,
+    createdAt: new Date().toISOString(),
+    segments,
+  };
+  state.recordingPosition = 0;
+  saveRecording();
+}
+
+function toggleRecordingPlayback() {
+  if (!state.recording) return;
+  if (state.recordingPlaying) {
+    clearInterval(state.recordingTimer);
+    state.recordingPlaying = false;
+    render();
+    return;
+  }
+  state.recordingPlaying = true;
+  state.recordingTimer = setInterval(() => {
+    state.recordingPosition += 1;
+    if (state.recordingPosition >= state.recording.duration) {
+      clearInterval(state.recordingTimer);
+      state.recordingPlaying = false;
+      state.recordingPosition = 0;
+    }
+    const position = document.querySelector("#recording-position");
+    const time = document.querySelector("#recording-time");
+    const active = document.querySelector(".recording-segment.active");
+    if (position) position.value = state.recordingPosition;
+    if (time) time.textContent = formatRecordingTime(state.recordingPosition);
+    document.querySelectorAll(".recording-segment").forEach((segment) => {
+      segment.classList.toggle("active", Number(segment.dataset.start) <= state.recordingPosition && Number(segment.dataset.end) > state.recordingPosition);
+    });
+    if (!state.recordingPlaying) render();
+  }, 1000);
+}
+
+function formatRecordingTime(seconds) {
+  return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
 }
 
 // 前端呼叫代理設定（可在 dev 時覆寫 window.PROXY_URL）
@@ -214,6 +283,19 @@ function loadDemo() {
 function addTranscriptEntry(role, text) {
   const entry = { role, text: text.trim(), at: new Date().toISOString() };
   state.messages.push(entry);
+  if (state.recording) {
+    const start = state.recording.duration;
+    state.recording.segments.push({
+      id: `${Date.now()}-${state.recording.segments.length}`,
+      role,
+      text: entry.text,
+      start,
+      end: start + 8,
+      corrected: false,
+    });
+    state.recording.duration += 8;
+    saveRecording();
+  }
   save();
   if (role === "elderly" && isDangerous(entry.text)) {
     state.paused = true;
@@ -237,6 +319,11 @@ function handleTranscript(text, speaker = state.speaker) {
 }
 
 function transcriptForAi() {
+  if (state.recording?.segments?.length) {
+    return state.recording.segments
+      .map(({ role, text }) => `${role === "staff" ? "訪問者" : "長者"}：${text}`)
+      .join("\n");
+  }
   return state.messages
     .map(({ role, text }) => `${role === "staff" ? "訪問者" : "長者"}：${text}`)
     .join("\n");
@@ -528,6 +615,12 @@ function renderCaregiverDashboard() {
       <div class="section-heading"><div><p class="eyebrow">訪談中</p><h2>對話逐字稿</h2></div><span class="step">${state.messages.length} 段記錄</span></div>
       <p class="interview-instructions">開始前先取得訪問者及長者同意。語音可能由瀏覽器服務處理；生成追問或摘要時，逐字稿會傳送到設定的 AI 服務。本應用不會保存音訊。</p>
       <label class="transcription-consent"><input id="transcription-consent" type="checkbox" ${state.interviewConsent ? "checked" : ""} /> 訪問者及長者同意語音轉錄及將逐字稿傳送至 AI 服務</label>
+      <section class="recording-review">
+        <div class="recording-heading"><div><p class="eyebrow">整段錄音・Demo</p><strong>${state.recording ? "訪談錄音已儲存" : "尚未開始錄音"}</strong></div><span class="recording-badge">${state.recording ? "可供回顧" : "模擬功能"}</span></div>
+        <p class="interview-instructions">這是用來展示 UX 的假錄音。真實版本會在取得同意後保存整段音訊，照顧者可以按時間位置核對逐字稿。</p>
+        <div class="recording-controls"><button id="fake-record" class="secondary">${state.recording ? "重新錄製 Demo 錄音" : "● 開始整段錄音"}</button>${state.recording ? `<button id="play-recording" class="primary">${state.recordingPlaying ? "Ⅱ 暫停播放" : "▶ 播放錄音"}</button><span id="recording-time">${formatRecordingTime(state.recordingPosition)} / ${formatRecordingTime(state.recording.duration)}</span>` : ""}</div>
+        ${state.recording ? `<div class="fake-waveform" aria-label="錄音波形">${Array.from({ length: 56 }, (_, index) => `<i style="height:${12 + ((index * 17) % 28)}px"></i>`).join("")}<b class="wave-playhead" style="left:${(state.recordingPosition / state.recording.duration) * 100}%"></b></div><input id="recording-position" class="recording-range" type="range" min="0" max="${state.recording.duration}" value="${state.recordingPosition}" aria-label="錄音播放位置" /><div class="recording-segments">${state.recording.segments.map((segment) => `<article class="recording-segment ${state.recordingPosition >= segment.start && state.recordingPosition < segment.end ? "active" : ""}" data-start="${segment.start}" data-end="${segment.end}"><span>${formatRecordingTime(segment.start)} · ${segment.role === "elderly" ? "長者" : "訪問者"}</span><textarea data-recording-segment="${segment.id}" rows="2">${escapeHtml(segment.text)}</textarea><button class="text-button save-segment" data-recording-id="${segment.id}">${segment.corrected ? "✓ 已修正" : "保存修正"}</button></article>`).join("")}</div>` : ""}
+      </section>
       <section class="conversation" aria-live="polite">${state.messages.length ? state.messages.map((message) => `<article class="message ${message.role}"><span class="role">${message.role === "elderly" ? "長者" : "訪問者"}</span><p>${escapeHtml(message.text)}</p></article>`).join("") : `<div class="empty"><p>訪問者與長者開始對話後，逐字稿會顯示喺呢度。</p></div>`}</section>
       ${state.listening ? `<div class="live-preview"><strong>即時辨識中・${state.speaker === "staff" ? "訪問者" : "長者"}</strong><p id="live-preview">${escapeHtml(state.liveTranscript || "聆聽中…")}</p></div>` : ""}
       <div class="speaker-picker"><span class="current-speaker">目前說話者：${state.speaker === "staff" ? "訪問者" : "長者"}</span><button id="switch-speaker" type="button">切換至${state.speaker === "staff" ? "長者" : "訪問者"}${state.listening ? "（錄音繼續）" : ""}</button></div>
@@ -573,6 +666,29 @@ function renderCaregiverDashboard() {
     input.value = "";
   });
   document.querySelector("#suggest-questions")?.addEventListener("click", generateSuggestions);
+  document.querySelector("#fake-record")?.addEventListener("click", () => {
+    createFakeRecording();
+    state.status = "Demo 錄音已保存；照顧者可以按時間位置核對逐字稿。";
+    render();
+  });
+  document.querySelector("#play-recording")?.addEventListener("click", toggleRecordingPlayback);
+  document.querySelector("#recording-position")?.addEventListener("input", (event) => {
+    state.recordingPosition = Number(event.target.value);
+    render();
+  });
+  document.querySelectorAll(".save-segment").forEach((button) => button.addEventListener("click", () => {
+    const segment = state.recording?.segments.find((item) => item.id === button.dataset.recordingId);
+    const textarea = document.querySelector(`[data-recording-segment="${button.dataset.recordingId}"]`);
+    if (!segment || !textarea) return;
+    segment.text = textarea.value.trim();
+    segment.corrected = true;
+    const segmentIndex = state.recording.segments.findIndex((item) => item.id === segment.id);
+    if (state.messages[segmentIndex]) state.messages[segmentIndex].text = segment.text;
+    save();
+    saveRecording();
+    state.status = "已保存人工修正，之後摘要會以修正後內容為準。";
+    render();
+  }));
   document.querySelector("#end-interview")?.addEventListener("click", endInterview);
   document.querySelector("#save-story-draft")?.addEventListener("click", () => {
     state.story.text = document.querySelector("#story-editor").value.trim();

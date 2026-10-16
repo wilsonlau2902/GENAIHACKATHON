@@ -191,6 +191,23 @@ button:disabled { cursor: not-allowed; opacity: .55; }
 .dashboard-wide-card.interview-panel, .dashboard-wide-card.followup-section, .dashboard-wide-card.story-section, .dashboard-wide-card.share-section, .dashboard-wide-card.memory-section { border-color: #e3e1da; background: #fff; }
 .dashboard-wide-card .conversation { max-height: 320px; overflow: auto; padding: 12px 0; }
 .dashboard-wide-card .story-review { margin-top: 12px; }
+.recording-review { margin: 18px 0; padding: 16px; border: 1px solid #dfe6e0; border-radius: 10px; background: #f7faf7; }
+.recording-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.recording-heading .eyebrow { margin: 0 0 4px; }
+.recording-badge { padding: 5px 8px; border-radius: 6px; color: #587064; background: #e6f0e8; font-size: .68rem; font-weight: 700; }
+.recording-controls { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; margin-top: 12px; }
+.recording-controls .primary, .recording-controls .secondary { margin: 0; }
+.recording-controls > span { color: #69756e; font-size: .74rem; font-variant-numeric: tabular-nums; }
+.fake-waveform { position: relative; display: flex; align-items: center; gap: 3px; height: 55px; margin-top: 16px; padding: 0 5px; overflow: hidden; border-radius: 7px; background: #e9f1eb; }
+.fake-waveform i { display: block; flex: 1; min-width: 2px; border-radius: 3px; background: #7ea38c; }
+.wave-playhead { position: absolute; top: 0; bottom: 0; width: 2px; background: #c45d47; }
+.recording-range { display: block; width: 100%; margin: 5px 0 12px; accent-color: #315d4c; }
+.recording-segments { display: grid; gap: 8px; }
+.recording-segment { padding: 10px; border: 1px solid #e1e6e1; border-radius: 8px; background: #fff; }
+.recording-segment.active { border-color: #c45d47; box-shadow: 0 0 0 2px #c45d471c; }
+.recording-segment > span { display: block; margin-bottom: 5px; color: #718078; font-size: .68rem; font-weight: 700; }
+.recording-segment textarea { width: 100%; padding: 8px; border: 1px solid #dfe3df; border-radius: 6px; color: #394b42; background: #fbfcfa; font: inherit; font-size: .78rem; line-height: 1.45; resize: vertical; }
+.recording-segment .text-button { margin-top: 3px; font-size: .7rem; }
 .caregiver-card { padding: 22px; border: 1px solid #e3e1da; border-radius: 12px; background: #fff; }
 .caregiver-card h2 { font-size: 1.35rem; }
 .caregiver-card p { line-height: 1.55; }
