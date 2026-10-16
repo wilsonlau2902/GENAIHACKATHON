@@ -46,6 +46,18 @@ function escapeHtml(value) {
   }[character]));
 }
 
+function createDemoImage() {
+  return "data:image/svg+xml;charset=UTF-8," + encodeURIComponent(`
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 520">
+      <rect width="800" height="520" fill="#d9c8a9"/>
+      <rect x="70" y="70" width="660" height="330" rx="18" fill="#f4ead8"/>
+      <circle cx="400" cy="210" r="92" fill="#c98762"/>
+      <path d="M310 190c20-100 160-100 180 0-40-30-140-30-180 0Z" fill="#4d4038"/>
+      <path d="M260 390c20-110 260-110 280 0Z" fill="#6f8f78"/>
+      <text x="400" y="465" text-anchor="middle" font-family="sans-serif" font-size="26" fill="#4d4038">梅菜扣肉的回憶</text>
+    </svg>`);
+}
+
 function saveRecording() {
   localStorage.setItem(RECORDING_KEY, JSON.stringify(state.recording));
 }
@@ -268,6 +280,19 @@ function loadDemo() {
     people: "婆婆、屋企人",
     caption: "婆婆最叻煮梅菜扣肉，屋企人返工返學都會一齊食。",
     confirmed: true,
+  };
+  state.story = {
+    title: "婆婆煮梅菜扣肉的回憶",
+    text: "阿梅婆婆記得，細個住喺深水埗，最期待婆婆煮梅菜扣肉。屋企人返工返學後一齊食飯，係一家人最溫暖嘅時光。",
+    confirmed: true,
+    profileConfirmed: true,
+    profile: {
+      people: "阿梅婆婆、婆婆、屋企人",
+      place: "深水埗",
+      year: "1968",
+      quote: "最鍾意睇婆婆煮飯",
+    },
+    sharePermissions: { story: true, quote: true, photo: true, details: true },
   };
   state.sharing = null;
   state.story = null;
@@ -631,7 +656,7 @@ function renderCaregiverDashboard() {
     </section>
     <section class="dashboard-wide-card followup-section"><div class="section-heading"><div><p class="eyebrow">只供工作人員參考</p><h2>可選追問建議</h2></div><button id="suggest-questions" class="secondary" ${!state.messages.some((message) => message.role === "elderly") || state.suggestionsLoading || state.interviewEnded ? "disabled" : ""}>${state.suggestionsLoading ? "準備中…" : "生成追問建議"}</button></div><p class="interview-instructions">由訪問者自行決定是否採用；AI 不會把建議直接說給長者聽。</p>${state.suggestions.length ? `<ul class="suggestion-list">${state.suggestions.map((suggestion) => `<li>${escapeHtml(suggestion)}</li>`).join("")}</ul>` : ""}</section>`,
     3: `<section class="dashboard-wide-card story-section"><div class="section-heading"><div><p class="eyebrow">訪談後</p><h2>AI 訪談摘要</h2></div><button id="end-interview" class="primary" ${!state.messages.some((message) => message.role === "elderly") || state.summaryLoading || state.interviewEnded ? "disabled" : ""}>${state.summaryLoading ? "正在生成摘要…" : state.interviewEnded ? "訪談已結束" : "結束訪談並生成摘要"}</button></div>${state.story ? `<article class="story-review"><span class="ai-label">AI 整理・${storyReady ? "已確認" : "尚未確認"}</span><h3>${escapeHtml(state.story.title || "訪談摘要")}</h3><p class="review-help">摘要會先供工作人員和長者核對，確認後才可以分享。</p><textarea id="story-editor" rows="6" aria-label="故事內容">${escapeHtml(state.story.text)}</textarea><div class="review-actions">${storyReady ? `<div class="confirmed">✓ 已加入故事書</div>` : `<button id="confirm-story-text" class="primary">確認 Story Profile 及故事</button>`}</div></article>` : `<div class="story-empty"><p>結束訪談後，AI 會整理長者說過的內容；摘要會先供工作人員和長者核對。</p></div>`}</section>
-    <section class="dashboard-wide-card share-section"><div class="section-heading"><div><p class="eyebrow">分享給家人</p><h2>故事分享頁</h2></div><span class="step">私隱由你決定</span></div>${storyReady ? `<p class="share-help">只有已確認嘅故事先可以分享。家人掃描 QR code，就可以睇故事同留言。</p><div class="share-controls"><label class="consent-toggle"><input id="sharing-consent" type="checkbox" ${state.sharing?.enabled ? "checked" : ""} /> 我同意分享呢段故事</label><button id="create-share" class="primary" ${state.sharing?.enabled ? "" : "disabled"}>產生分享 QR Code</button></div>${state.sharing?.enabled ? `<div class="share-result"><div class="qr">${createQrCode()}</div><div><strong>已建立私人分享頁</strong><p class="share-url">${escapeHtml(state.sharing.url)}</p><button id="open-share" class="text-button">預覽故事分享頁</button></div></div>` : ""}` : `<p class="share-help">完成故事確認後，先可以產生 QR Code 分享頁。</p>`}</section>
+    <section class="dashboard-wide-card share-section"><div class="section-heading"><div><p class="eyebrow">分享給家人</p><h2>故事分享頁</h2></div><span class="step">私隱由你決定</span></div>${storyReady ? `<p class="share-help">故事已確認。照片不是必要條件；你可以直接分享文字故事，亦可以稍後再加入舊相。</p><div class="share-controls"><label class="consent-toggle"><input id="sharing-consent" type="checkbox" ${state.sharing?.enabled ? "checked" : ""} /> 我同意分享呢段故事</label><button id="create-share" class="primary" ${state.sharing?.enabled ? "" : "disabled"}>產生分享 QR Code</button></div>${state.sharing?.enabled ? `<div class="share-result"><div class="qr">${createQrCode()}</div><div><strong>已建立私人分享頁</strong><p class="share-url">${escapeHtml(state.sharing.url)}</p><button id="open-share" class="text-button">預覽故事分享頁</button></div></div>` : ""}` : `<p class="share-help">先完成訪談摘要，並由工作人員和長者確認故事內容；確認後就可以分享，不需要照片。</p>`}</section>
     <section class="dashboard-wide-card memory-section"><div class="section-heading"><div><p class="eyebrow">保存一段回憶</p><h2>加一張舊相</h2></div><span class="step">下一步</span></div>${state.photo ? `<article class="story-card"><img src="${state.photo.image}" alt="${escapeHtml(state.photo.title || "回憶相片")}" /><div class="story-card-content"><h3>${escapeHtml(state.photo.title || "未命名回憶")}</h3><p>${escapeHtml(state.photo.caption || "你可以補充呢張相背後嘅故事。")}</p></div></article>` : `<form id="photo-form" class="photo-form"><label class="upload-box" for="photo-input"><span class="upload-icon">＋</span><strong>上載一張舊相</strong><small>可以從手機相簿選擇，圖片只保存在此瀏覽器</small></label><input id="photo-input" type="file" accept="image/*" /><div class="photo-fields"><input id="photo-title" placeholder="相片標題" /><input id="photo-year" inputmode="numeric" placeholder="大約年份（可留空）" /><input id="photo-people" placeholder="相中人物（可留空）" /><textarea id="photo-caption" rows="3" placeholder="想記低嘅故事或長者原句（可留空）"></textarea></div><button class="primary" type="submit">生成故事卡</button></form>`}</section>`,
   };
   app.innerHTML = `<div class="shell dashboard">
