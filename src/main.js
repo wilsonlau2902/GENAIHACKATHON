@@ -541,7 +541,7 @@ function renderFocusMode() {
       <label class="transcription-consent"><input id="focus-transcription-consent" type="checkbox" ${state.interviewConsent ? "checked" : ""} /> 訪問者及長者同意使用瀏覽器語音轉錄，並將逐字稿傳送至設定的 AI 服務生成建議及摘要；本應用不保存音訊</label>
       ${lastEntry ? `<div class="focus-transcript"><span>${speakerLabel(lastEntry.role)}・最近記錄</span><p>「${escapeHtml(lastEntry.text)}」</p></div>` : ""}
       ${state.listening ? `<div class="live-preview" id="live-preview">${escapeHtml(state.liveTranscript || "聆聽中…")}</div>` : ""}
-      <button id="focus-listen" class="focus-mic ${state.listening ? "active" : ""}" ${state.interviewEnded || state.paused ? "disabled" : ""}><span>${state.listening ? "■" : "🎙"}</span><strong>${state.listening ? "停止整段錄音" : "開始整段錄音"}</strong></button>
+      <button id="focus-listen" class="focus-mic ${state.listening ? "active" : ""}" ${state.interviewEnded || state.paused ? "disabled" : ""}><span>${state.listening ? "■" : "🎙"}</span><strong>${state.listening ? "停止錄音" : "開始錄音"}</strong></button>
       <div class="focus-actions"><button id="focus-rest" class="secondary">我想休息</button><button id="focus-end" class="primary" ${!state.messages.some((message) => message.role === "elderly") || state.summaryLoading || state.interviewEnded ? "disabled" : ""}>${state.summaryLoading ? "正在生成摘要…" : state.interviewEnded ? "訪談已結束" : "結束訪談並生成摘要"}</button></div>
       ${storyReady ? `<section class="focus-sharing"><span class="ai-label">長者已確認</span><h2>你的故事準備好喇</h2><p>如果你願意，可以分享俾屋企人睇。</p><button id="focus-share" class="primary">${state.sharing?.enabled ? "分享連結已準備好" : "分享給家人"}</button><small>你可以隨時改變主意。</small></section>` : ""}
       ${state.status ? `<p class="status-message" role="status">${escapeHtml(state.status)}</p>` : ""}
@@ -622,13 +622,11 @@ function renderCaregiverDashboard() {
       <label class="transcription-consent"><input id="transcription-consent" type="checkbox" ${state.interviewConsent ? "checked" : ""} /> 訪問者及長者同意語音轉錄及將逐字稿傳送至 AI 服務</label>
       <section class="recording-review">
         <div class="recording-heading"><div><p class="eyebrow">整段錄音</p><strong>${state.listening ? "正在持續錄音及轉錄" : state.recording ? "訪談錄音已儲存" : "尚未開始錄音"}</strong></div><span class="recording-badge">${state.listening ? "AI 辨識中" : state.recording ? "可供回顧" : "準備開始"}</span></div>
-        <p class="interview-instructions">錄音會持續進行；逐字稿會即時出現，稍後可以按時間位置回顧及人工修正。</p>
-        <div class="recording-controls"><button id="fake-record" class="secondary">${state.recording ? "重新開始整段錄音" : "● 開始整段錄音"}</button>${state.recording ? `<button id="play-recording" class="primary">${state.recordingPlaying ? "Ⅱ 暫停播放" : "▶ 播放錄音"}</button><span id="recording-time">${formatRecordingTime(state.recordingPosition)} / ${formatRecordingTime(state.recording.duration)}</span>` : ""}</div>
+        <div class="recording-controls"><button id="fake-record" class="primary recording-start-button" aria-label="${state.listening ? "停止錄音" : "開始錄音"}">${state.listening ? "■ 停止錄音" : "🎙 開始錄音"}</button>${state.recording ? `<button id="play-recording" class="secondary">${state.recordingPlaying ? "Ⅱ 暫停播放" : "▶ 播放錄音"}</button><span id="recording-time">${formatRecordingTime(state.recordingPosition)} / ${formatRecordingTime(state.recording.duration)}</span>` : ""}</div>
         ${state.recording ? `<div class="fake-waveform" aria-label="錄音波形">${Array.from({ length: 56 }, (_, index) => `<i style="height:${12 + ((index * 17) % 28)}px"></i>`).join("")}<b class="wave-playhead" style="left:${state.recording.duration ? (state.recordingPosition / state.recording.duration) * 100 : 0}%"></b></div><input id="recording-position" class="recording-range" type="range" min="0" max="${Math.max(state.recording.duration, 1)}" value="${state.recordingPosition}" aria-label="錄音播放位置" /><div class="recording-segments">${state.recording.segments.map((segment) => `<article class="recording-segment ${state.recordingPosition >= segment.start && state.recordingPosition < segment.end ? "active" : ""}" data-start="${segment.start}" data-end="${segment.end}"><span>${formatRecordingTime(segment.start)} · ${segment.role === "elderly" ? "長者" : "訪問者"}</span><textarea data-recording-segment="${segment.id}" rows="2">${escapeHtml(segment.text)}</textarea><button class="text-button save-segment" data-recording-id="${segment.id}">${segment.corrected ? "✓ 已修正" : "保存修正"}</button></article>`).join("")}</div>` : ""}
       </section>
-      <section class="conversation" aria-live="polite">${state.messages.length ? state.messages.map((message) => `<article class="message ${message.role}"><span class="role">${message.role === "elderly" ? "長者" : "訪問者"}</span><p>${escapeHtml(message.text)}</p></article>`).join("") : `<div class="empty"><p>按「開始整段錄音」，AI 會在對話進行時持續整理逐字稿。</p></div>`}</section>
+      <section class="conversation" aria-live="polite">${state.messages.length ? state.messages.map((message) => `<article class="message ${message.role}"><span class="role">${message.role === "elderly" ? "長者" : "訪問者"}</span><p>${escapeHtml(message.text)}</p></article>`).join("") : `<div class="empty"><p>按「開始錄音」即可開始訪談。</p></div>`}</section>
       ${state.listening ? `<div class="live-preview"><strong>AI 即時辨識中・${state.autoSpeaker === "staff" ? "訪問者" : "長者"}</strong><p id="live-preview">${escapeHtml(state.liveTranscript || "聆聽中…")}</p></div>` : ""}
-      <button class="mic ${state.listening ? "active" : ""}" type="button" id="listen" ${state.paused || state.interviewEnded ? "disabled" : ""}><span>${state.listening ? "■" : "🎙"}</span><small>${state.listening ? "停止整段錄音" : "開始整段錄音"}</small></button>
       ${state.status ? `<p class="status-message" role="status">${escapeHtml(state.status)}</p>` : ""}
     </section>
     <section class="dashboard-wide-card followup-section"><div class="section-heading"><div><p class="eyebrow">只供工作人員參考</p><h2>可選追問建議</h2></div><button id="suggest-questions" class="secondary" ${!state.messages.some((message) => message.role === "elderly") || state.suggestionsLoading || state.interviewEnded ? "disabled" : ""}>${state.suggestionsLoading ? "準備中…" : "生成追問建議"}</button></div><p class="interview-instructions">由訪問者自行決定是否採用；AI 不會把建議直接說給長者聽。</p>${state.suggestions.length ? `<ul class="suggestion-list">${state.suggestions.map((suggestion) => `<li>${escapeHtml(suggestion)}</li>`).join("")}</ul>` : ""}</section>`,
@@ -661,7 +659,6 @@ function renderCaregiverDashboard() {
     state.interviewConsent = event.target.checked;
     if (!state.interviewConsent && state.listening) stopListening();
   });
-  document.querySelector("#listen")?.addEventListener("click", startListening);
   document.querySelector("#suggest-questions")?.addEventListener("click", generateSuggestions);
   document.querySelector("#fake-record")?.addEventListener("click", () => {
     if (state.listening) stopListening();
@@ -805,11 +802,11 @@ function render() {
           <div><p class="eyebrow">訪談中</p><h2 id="transcript-heading">對話逐字稿</h2></div>
           <span class="step">${state.messages.length} 段記錄</span>
         </div>
-        <p class="interview-instructions">開始前先取得訪問者及長者同意。語音可能由瀏覽器服務處理；生成追問或摘要時，逐字稿會傳送到設定的 AI 服務。本應用不會保存音訊。</p>
+        <p class="interview-instructions">開始前先取得訪問者及長者同意。開始錄音後，AI 會持續轉錄並自動標記說話者。</p>
         <label class="transcription-consent"><input id="transcription-consent" type="checkbox" ${state.interviewConsent ? "checked" : ""} /> 訪問者及長者同意語音轉錄及將逐字稿傳送至 AI 服務</label>
         <section class="conversation" aria-live="polite">${messages}</section>
         ${state.listening ? `<div class="live-preview"><strong>AI 即時辨識中・${state.autoSpeaker === "staff" ? "訪問者" : "長者"}</strong><p id="live-preview">${escapeHtml(state.liveTranscript || "聆聽中…")}</p></div>` : ""}
-        <button class="mic ${state.listening ? "active" : ""}" type="button" id="listen" aria-label="${state.listening ? "停止整段錄音" : "開始整段錄音"}" ${state.paused || state.interviewEnded ? "disabled" : ""}><span>${state.listening ? "■" : "🎙"}</span><small>${state.listening ? "停止整段錄音" : "開始整段錄音"}</small></button>
+        <button class="mic ${state.listening ? "active" : ""}" type="button" id="listen" aria-label="${state.listening ? "停止錄音" : "開始錄音"}" ${state.paused || state.interviewEnded ? "disabled" : ""}><span>${state.listening ? "■" : "🎙"}</span><small>${state.listening ? "停止錄音" : "開始錄音"}</small></button>
         ${state.status ? `<p class="status-message" role="status">${escapeHtml(state.status)}</p>` : ""}
       </section>
       <section class="followup-section">

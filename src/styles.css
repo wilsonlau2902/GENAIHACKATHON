@@ -197,6 +197,7 @@ button:disabled { cursor: not-allowed; opacity: .55; }
 .recording-badge { padding: 5px 8px; border-radius: 6px; color: #587064; background: #e6f0e8; font-size: .68rem; font-weight: 700; }
 .recording-controls { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; margin-top: 12px; }
 .recording-controls .primary, .recording-controls .secondary { margin: 0; }
+.recording-start-button { min-width: 150px; min-height: 48px; font-size: .9rem; }
 .recording-controls > span { color: #69756e; font-size: .74rem; font-variant-numeric: tabular-nums; }
 .fake-waveform { position: relative; display: flex; align-items: center; gap: 3px; height: 55px; margin-top: 16px; padding: 0 5px; overflow: hidden; border-radius: 7px; background: #e9f1eb; }
 .fake-waveform i { display: block; flex: 1; min-width: 2px; border-radius: 3px; background: #7ea38c; }
