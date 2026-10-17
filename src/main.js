@@ -1,5 +1,6 @@
 import "./styles.css";
 import { AGENT_SYSTEM_PROMPT, DANGER_PATTERNS } from "./agent-system-prompt.js";
+import QRCode from "qrcode";
 
 const TRANSCRIPT_KEY = "yiloi-interview-transcript-v1";
 const PHOTO_KEY = "yiloi-interview-photo-v1";
@@ -150,18 +151,20 @@ async function queryProxy(messages) {
 }
 
 function createQrCode() {
-  const cells = [
-    "1111111001011111111", "1000001011011000001", "1011101000011011101",
-    "1011101011011011101", "1011101001011011101", "1000001010111000001",
-    "1111111010101111111", "0000000011010000000", "1101111010111011011",
-    "0010100101100100100", "1110011110011110001", "0101110001110001110",
-    "1111111001001011011", "1000001011110010100", "1011101000101110111",
-    "1011101011001001001", "1011101000111011100", "1000001011010010111",
-    "1111111010101110101",
-  ];
-  return `<svg viewBox="0 0 19 19" role="img" aria-label="故事分享 QR Code">${cells.map((row, y) =>
-    [...row].map((cell, x) => cell === "1" ? `<rect x="${x}" y="${y}" width="1" height="1" />` : "").join("")
-  ).join("")}</svg>`;
+  const qr = QRCode.create(getShareUrl(), { errorCorrectionLevel: "M" });
+  const { data, size } = qr.modules;
+  const quietZone = 4;
+  const viewBoxSize = size + quietZone * 2;
+  const modules = [];
+
+  for (let index = 0; index < data.length; index += 1) {
+    if (!data[index]) continue;
+    const x = index % size;
+    const y = Math.floor(index / size);
+    modules.push(`<rect x="${x + quietZone}" y="${y + quietZone}" width="1" height="1" />`);
+  }
+
+  return `<svg viewBox="0 0 ${viewBoxSize} ${viewBoxSize}" role="img" aria-label="故事分享 QR Code" shape-rendering="crispEdges"><rect width="100%" height="100%" fill="#fff" />${modules.join("")}</svg>`;
 }
 
 function renderSharePage() {
