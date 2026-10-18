@@ -112,17 +112,19 @@ button:disabled { cursor: not-allowed; opacity: .55; }
 .share-controls { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
 .consent-toggle { display: flex; align-items: center; gap: 8px; font-size: .9rem; }
 .consent-toggle input { width: 22px; height: 22px; accent-color: #27665b; }
-.share-result { display: flex; align-items: center; gap: 24px; margin-top: 18px; padding: 16px; border-radius: 14px; background: #fff; }
-.qr { flex: 0 0 150px; width: 150px; height: 150px; padding: 10px; background: #fff; }
+.share-result { display: flex; align-items: center; gap: 24px; margin-top: 18px; padding: 18px; border-radius: 14px; background: #fff; }
+.qr { flex: 0 0 170px; width: 170px; height: 170px; padding: 10px; background: #fff; }
 .qr svg { display: block; width: 100%; height: 100%; fill: #242321; shape-rendering: crispEdges; }
 .share-url { max-width: 360px; overflow-wrap: anywhere; color: #6d6860; font-size: .8rem; }
-.share-buttons { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0 4px; }
-.share-button { display: inline-flex; min-height: 42px; align-items: center; gap: 7px; padding: 7px 11px; border: 0; border-radius: 9px; color: #fff; font-size: .75rem; font-weight: 800; }
+.share-buttons { display: flex; flex-wrap: wrap; gap: 8px; margin: 14px 0 6px; }
+.share-button { display: inline-flex; min-height: 46px; align-items: center; gap: 7px; padding: 8px 13px; border: 0; border-radius: 10px; color: #fff; font-size: .8rem; font-weight: 800; cursor: pointer; }
 .share-button svg { width: 21px; height: 21px; fill: currentColor; }
 .share-button.whatsapp { background: #25d366; }
 .share-button.facebook { background: #1877f2; }
 .share-button.wechat { color: #1f6b3c; background: #b7e8c5; }
 .share-button.copy, .share-button.more { color: #27665b; background: #dcece2; }
+.share-button:hover { filter: brightness(.97); transform: translateY(-1px); }
+.share-button:focus-visible { outline: 3px solid #f0b85b; outline-offset: 2px; }
 .share-page .share-hero { padding: 54px 0 18px; }
 .share-page .share-hero p:last-child { color: #6d6860; }
 .shared-photo { display: block; width: 100%; max-height: 430px; object-fit: cover; border-radius: 20px; }
