@@ -1,4 +1,4 @@
-﻿import express from 'express';
+import express from 'express';
 import { fetch } from 'undici';
 import dotenv from 'dotenv';
 

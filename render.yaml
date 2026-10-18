@@ -1,0 +1,28 @@
+# Render Blueprint for the 憶旅 AI proxy (DeepSeek).
+# Deploy: Render dashboard → New → Blueprint → connect the GitHub repo
+# (wilsonlau2902/GENAIHACKATHON) and pick this file. Then set the
+# API_KEY secret manually (sync: false keeps it out of git).
+services:
+  - type: web
+    name: yiloi-ai-proxy
+    env: node
+    plan: free
+    region: singapore
+    buildCommand: npm install
+    startCommand: node server/proxy.js
+    healthCheckPath: /api/health
+    autoDeploy: true
+    envVars:
+      # DeepSeek API key — server-side only, NEVER in the frontend bundle.
+      - key: API_KEY
+        sync: false
+      # DeepSeek API base URL (OpenAI-compatible).
+      - key: API_BASE_URL
+        value: https://api.deepseek.com
+      # Comma-separated list of origins allowed to call the proxy (CORS).
+      # Must include the exact origin of your published static site.
+      - key: FRONTEND_ORIGINS
+        value: https://wilsonlau2902.github.io,https://a0b952c956f246989a03de23ab3d63e2.sg2.agentos-app.run
+      # Max AI requests per IP per hour. Keep low on a public link.
+      - key: RATE_LIMIT_MAX
+        value: "10"

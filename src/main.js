@@ -1,6 +1,7 @@
 import "./styles.css";
 import { AGENT_SYSTEM_PROMPT, DANGER_PATTERNS } from "./agent-system-prompt.js";
 import QRCode from "qrcode";
+import demoPhotoUrl from "./assets/demo-photo.jpg";
 
 const TRANSCRIPT_KEY = "yiloi-interview-transcript-v1";
 const PHOTO_KEY = "yiloi-interview-photo-v1";
@@ -30,6 +31,7 @@ const state = {
   suggestions: [],
   suggestionsLoading: false,
   summaryLoading: false,
+  classifying: false,
   interviewEnded: localStorage.getItem(INTERVIEW_ENDED_KEY) === "true",
   recording: JSON.parse(localStorage.getItem(RECORDING_KEY) || "null"),
   recordingPlaying: false,
@@ -48,15 +50,7 @@ function escapeHtml(value) {
 }
 
 function createDemoImage() {
-  return "data:image/svg+xml;charset=UTF-8," + encodeURIComponent(`
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 520">
-      <rect width="800" height="520" fill="#d9c8a9"/>
-      <rect x="70" y="70" width="660" height="330" rx="18" fill="#f4ead8"/>
-      <circle cx="400" cy="210" r="92" fill="#c98762"/>
-      <path d="M310 190c20-100 160-100 180 0-40-30-140-30-180 0Z" fill="#4d4038"/>
-      <path d="M260 390c20-110 260-110 280 0Z" fill="#6f8f78"/>
-      <text x="400" y="465" text-anchor="middle" font-family="sans-serif" font-size="26" fill="#4d4038">梅菜扣肉的回憶</text>
-    </svg>`);
+  return demoPhotoUrl;
 }
 
 function saveRecording() {
@@ -123,31 +117,82 @@ function formatRecordingTime(seconds) {
   return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
 }
 
-// 前端呼叫代理設定（可在 dev 時覆寫 window.PROXY_URL）
-const PROXY_URL = window.PROXY_URL || import.meta.env.VITE_PROXY_URL || 'http://localhost:3001/api/chat';
+// --- AI backend: supports two routes ---
+// Route A (keyless): VITE_WBCLOUD_ENDPOINT + VITE_WBCLOUD_KEY → WorkBuddy cloud LLM
+// Route B (proxy):   VITE_PROXY_URL → your Render-hosted server/proxy.js
+// Whichever is configured at build time wins; keyless takes priority.
 
-// Send staff-only assistance requests to the server-side AI proxy.
+const PROXY_URL = import.meta.env.VITE_PROXY_URL || window.PROXY_URL || "https://yiloi-ai-proxy.onrender.com/api/chat";
+
+// Send staff-only assistance requests to whichever AI backend is configured.
 async function queryProxy(messages) {
-  const response = await fetch(PROXY_URL, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ model: "deepseek-flash", messages }),
-  });
-  const responseText = await response.text();
-  if (!response.ok) {
-    throw new Error(`AI request failed (${response.status}): ${responseText.slice(0, 300)}`);
+  // Every chat request must start with an application-owned system message.
+  if (!messages.length || messages[0].role !== "system") {
+    messages = [
+      { role: "system", content: "You are a helpful assistant. Be concise and helpful." },
+      ...messages,
+    ];
   }
-  let data;
+
+  // Route B: proxy server (Render)
+  if (PROXY_URL) {
+    const response = await fetch(PROXY_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ model: "deepseek-chat", messages }),
+    });
+    const responseText = await response.text();
+    if (!response.ok) {
+      throw new Error(`AI request failed (${response.status}): ${responseText.slice(0, 300)}`);
+    }
+    let data;
+    try { data = JSON.parse(responseText); } catch {
+      throw new Error("AI proxy returned an invalid response.");
+    }
+    const content = data.choices?.[0]?.message?.content || data.reply;
+    if (typeof content !== "string" || !content.trim()) {
+      throw new Error("AI proxy returned no text.");
+    }
+    return content.trim();
+  }
+
+  throw new Error("AI proxy URL is not configured.");
+}
+
+// AI-based speaker classification — analyzes transcript content to determine
+// whether a new speech segment is from the staff (interviewer) or the elderly person.
+// Falls back to alternating if the AI call fails or times out.
+async function classifySpeaker(newText, fallbackSpeaker) {
+  // Use raw conversation text WITHOUT role labels — labeled context can
+  // reinforce misclassification if earlier labels were wrong.
+  const recent = state.messages.slice(-5);
+  const context = recent.length
+    ? recent.map((m) => m.text).join("\n")
+    : "(對話剛開始)";
   try {
-    data = JSON.parse(responseText);
+    const result = await Promise.race([
+      queryProxy([
+        {
+          role: "system",
+          content: `你是一個對話角色辨識助手。在一個長者回憶訪談中，有兩個角色：
+- 「訪問者」(staff)：工作人員，負責提問、引導、回應，例如「你記唔記得…」「當時係點樣…」「即係…」
+- 「長者」(elderly)：老人家，負責分享回憶、回答問題、講述往事，例如「我嗰陣…」「嗰時…」「記得有一次…」
+
+判斷以下新的一段話是哪個角色說的。只回覆一個詞：staff 或 elderly，不要其他內容。`,
+        },
+        { role: "user", content: `最近嘅對話內容：\n${context}\n\n請判斷以下呢段話係邊個講嘅：\n${newText}` },
+      ]),
+      new Promise((_, reject) => setTimeout(() => reject(new Error("分類逾時")), 3000)),
+    ]);
+    const cleaned = result.trim().toLowerCase();
+    if (cleaned === "staff" || cleaned === "elderly") return cleaned;
+    // Extract from longer responses
+    if (cleaned.includes("elderly")) return "elderly";
+    if (cleaned.includes("staff")) return "staff";
+    return fallbackSpeaker;
   } catch {
-    throw new Error("AI proxy returned an invalid response.");
+    return fallbackSpeaker;
   }
-  const content = data.choices?.[0]?.message?.content || data.reply;
-  if (typeof content !== "string" || !content.trim()) {
-    throw new Error("AI proxy returned no text.");
-  }
-  return content.trim();
 }
 
 function createQrCode() {
@@ -243,6 +288,21 @@ function saveStory() {
 
 function saveSharing() {
   localStorage.setItem(SHARE_KEY, JSON.stringify(state.sharing));
+}
+
+function clearTranscript() {
+  state.messages = [];
+  state.suggestions = [];
+  state.interviewEnded = false;
+  state.paused = false;
+  state.status = "已清除本次逐字稿。";
+  if (!state.story?.confirmed) {
+    state.story = null;
+    saveStory();
+  }
+  localStorage.removeItem(INTERVIEW_ENDED_KEY);
+  save();
+  render();
 }
 
 function ensureShareLink() {
@@ -516,9 +576,52 @@ function startRecognitionSegment() {
     const transcript = state.liveTranscript;
     state.liveTranscript = "";
     if (transcript) {
-      handleTranscript(transcript, speaker);
-      state.autoSpeaker = speaker === "staff" ? "elderly" : "staff";
+      // Save entry immediately with the alternating fallback speaker so the
+      // transcript appears without delay, then ask the AI to reclassify.
+      const fallback = speaker === "staff" ? "elderly" : "staff";
+      const entryIndex = state.messages.length;
+      handleTranscript(transcript, fallback);
+      // Update autoSpeaker immediately so the NEXT segment alternates correctly,
+      // even before the async AI classification returns.
+      state.autoSpeaker = fallback;
+
+      // If the interview was paused (dangerous content), skip AI classification.
+      if (!state.paused) {
+        state.classifying = true;
+        state.status = "AI 正在辨識說話者…";
+        render();
+        classifySpeaker(transcript, fallback).then((classified) => {
+          state.classifying = false;
+          // Update the entry's speaker if the AI disagrees with the fallback.
+          if (state.messages[entryIndex]) {
+            state.messages[entryIndex].aiClassified = true;
+            if (classified !== fallback) {
+              state.messages[entryIndex].role = classified;
+              if (state.recording?.segments) {
+                const seg = state.recording.segments[entryIndex];
+                if (seg) seg.role = classified;
+              }
+              save();
+              saveRecording();
+              // Re-run danger check if reclassified to elderly.
+              if (classified === "elderly" && isDangerous(transcript)) {
+                state.paused = true;
+                state.listening = false;
+                state.status = "長者可能需要即時關心。請訪問者暫停訪談，陪伴長者並按機構安全流程處理。";
+                render();
+                return;
+              }
+            }
+          }
+          // Update autoSpeaker based on AI result so the next segment
+          // alternates from the correct speaker.
+          state.autoSpeaker = classified === "staff" ? "elderly" : "staff";
+          state.status = `AI 辨識為${classified === "staff" ? "訪問者" : "長者"}的說話。`;
+          render();
+        });
+      }
     }
+    // Restart recognition immediately — don't wait for AI classification.
     if (state.listening && !state.paused) {
       startRecognitionSegment();
       render();
@@ -656,7 +759,7 @@ function renderCaregiverDashboard() {
       </section>
     </div>`,
     2: `<section class="dashboard-wide-card interview-panel">
-      <div class="section-heading"><div><p class="eyebrow">訪談中</p><h2>對話逐字稿</h2></div><span class="step">${state.messages.length} 段記錄</span></div>
+      <div class="section-heading"><div><p class="eyebrow">訪談中</p><h2>對話逐字稿</h2></div><div class="heading-actions"><span class="step">${state.messages.length} 條記錄</span><button id="clear-transcript" class="clear-transcript-btn" ${state.listening ? "disabled" : ""}>清除逐字稿</button></div></div>
       <p class="interview-instructions">開始前先取得訪問者及長者同意。開始錄音後，AI 會持續轉錄，並自動標記訪問者與長者的說話段落。</p>
       <label class="transcription-consent"><input id="transcription-consent" type="checkbox" ${state.interviewConsent ? "checked" : ""} /> 訪問者及長者同意語音轉錄及將逐字稿傳送至 AI 服務</label>
       <section class="recording-action-card">
@@ -665,8 +768,8 @@ function renderCaregiverDashboard() {
         <p>${state.listening ? "AI 正在持續整理對話內容" : "按一下，開始記錄訪問者和長者的對話"}</p>
         <button id="fake-record" class="primary recording-start-button" aria-label="${state.listening ? "停止錄音" : "開始錄音"}">${state.listening ? "停止錄音" : "開始錄音"}</button>
       </section>
-      <section class="conversation" aria-live="polite">${state.messages.length ? state.messages.map((message) => `<article class="message ${message.role}"><span class="role">${message.role === "elderly" ? "長者" : "訪問者"}</span><p>${escapeHtml(message.text)}</p></article>`).join("") : ""}</section>
-      ${state.listening ? `<div class="live-preview"><strong>AI 即時辨識中・${state.autoSpeaker === "staff" ? "訪問者" : "長者"}</strong><p id="live-preview">${escapeHtml(state.liveTranscript || "聆聽中…")}</p></div>` : ""}
+      <section class="conversation" aria-live="polite">${state.messages.length ? state.messages.map((message) => `<article class="message ${message.role}"><span class="role">${message.role === "elderly" ? "長者" : "訪問者"}${message.aiClassified ? ' <small class="ai-tag">AI</small>' : ""}</span><p>${escapeHtml(message.text)}</p></article>`).join("") : ""}</section>
+      ${state.listening ? `<div class="live-preview"><strong>AI 即時辨識中${state.classifying ? "・辨識說話者中…" : `・${state.autoSpeaker === "staff" ? "訪問者" : "長者"}`}</strong><p id="live-preview">${escapeHtml(state.liveTranscript || "聆聽中…")}</p></div>` : ""}
       ${state.recording ? `<section class="recording-review"><div class="recording-heading"><div><p class="eyebrow">錄音回顧</p><strong>可以播放並核對逐字稿</strong></div><div class="recording-controls"><button id="play-recording" class="secondary">${state.recordingPlaying ? "Ⅱ 暫停播放" : "▶ 播放錄音"}</button><span id="recording-time">${formatRecordingTime(state.recordingPosition)} / ${formatRecordingTime(state.recording.duration)}</span></div></div><div class="fake-waveform" aria-label="錄音波形">${Array.from({ length: 56 }, (_, index) => `<i style="height:${12 + ((index * 17) % 28)}px"></i>`).join("")}<b class="wave-playhead" style="left:${state.recording.duration ? (state.recordingPosition / state.recording.duration) * 100 : 0}%"></b></div><input id="recording-position" class="recording-range" type="range" min="0" max="${Math.max(state.recording.duration, 1)}" value="${state.recordingPosition}" aria-label="錄音播放位置" /><div class="recording-segments">${state.recording.segments.map((segment) => `<article class="recording-segment ${state.recordingPosition >= segment.start && state.recordingPosition < segment.end ? "active" : ""}" data-start="${segment.start}" data-end="${segment.end}"><span>${formatRecordingTime(segment.start)} · ${segment.role === "elderly" ? "長者" : "訪問者"}</span><textarea data-recording-segment="${segment.id}" rows="2">${escapeHtml(segment.text)}</textarea><button class="text-button save-segment" data-recording-id="${segment.id}">${segment.corrected ? "✓ 已修正" : "保存修正"}</button></article>`).join("")}</div></section>` : ""}
       ${state.status ? `<p class="status-message" role="status">${escapeHtml(state.status)}</p>` : ""}
     </section>
@@ -701,6 +804,9 @@ function renderCaregiverDashboard() {
     if (!state.interviewConsent && state.listening) stopListening();
   });
   document.querySelector("#suggest-questions")?.addEventListener("click", generateSuggestions);
+  document.querySelector("#clear-transcript")?.addEventListener("click", () => {
+    if (confirm("確定清除本次逐字稿及未確認摘要？")) clearTranscript();
+  });
   document.querySelector("#fake-record")?.addEventListener("click", () => {
     if (state.listening) stopListening();
     else startListening();
@@ -751,6 +857,29 @@ function renderCaregiverDashboard() {
     render();
   });
   document.querySelector("#open-share")?.addEventListener("click", () => window.open(state.sharing.url, "_blank", "noopener,noreferrer"));
+  document.querySelector("#copy-share")?.addEventListener("click", async (event) => {
+    await copyShareUrl();
+    event.currentTarget.textContent = "已複製連結";
+  });
+  document.querySelector("#share-whatsapp")?.addEventListener("click", () => {
+    window.open(`https://wa.me/?text=${encodeURIComponent(`${getShareText()} ${getShareUrl()}`)}`, "_blank", "noopener,noreferrer");
+  });
+  document.querySelector("#share-facebook")?.addEventListener("click", () => {
+    window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(getShareUrl())}`, "_blank", "noopener,noreferrer");
+  });
+  document.querySelector("#share-wechat")?.addEventListener("click", async (event) => {
+    await copyShareUrl();
+    event.currentTarget.textContent = "連結已複製";
+    alert("分享連結已複製，請貼到微信對話或朋友圈。");
+  });
+  document.querySelector("#native-share")?.addEventListener("click", async (event) => {
+    if (navigator.share) {
+      await navigator.share({ title: getShareText(), text: getShareText(), url: getShareUrl() });
+      return;
+    }
+    await copyShareUrl();
+    event.currentTarget.textContent = "連結已複製";
+  });
   document.querySelector("#photo-form")?.addEventListener("submit", (event) => {
     event.preventDefault();
     const file = document.querySelector("#photo-input").files[0];
@@ -841,12 +970,12 @@ function render() {
       <section class="interview-panel" aria-labelledby="transcript-heading">
         <div class="section-heading">
           <div><p class="eyebrow">訪談中</p><h2 id="transcript-heading">對話逐字稿</h2></div>
-          <span class="step">${state.messages.length} 段記錄</span>
+          <div class="heading-actions"><span class="step">${state.messages.length} 條記錄</span><button id="clear-transcript" class="clear-transcript-btn" ${state.listening ? "disabled" : ""}>清除逐字稿</button></div>
         </div>
         <p class="interview-instructions">開始前先取得訪問者及長者同意。開始錄音後，AI 會持續轉錄並自動標記說話者。</p>
         <label class="transcription-consent"><input id="transcription-consent" type="checkbox" ${state.interviewConsent ? "checked" : ""} /> 訪問者及長者同意語音轉錄及將逐字稿傳送至 AI 服務</label>
         <section class="conversation" aria-live="polite">${messages}</section>
-        ${state.listening ? `<div class="live-preview"><strong>AI 即時辨識中・${state.autoSpeaker === "staff" ? "訪問者" : "長者"}</strong><p id="live-preview">${escapeHtml(state.liveTranscript || "聆聽中…")}</p></div>` : ""}
+        ${state.listening ? `<div class="live-preview"><strong>AI 即時辨識中${state.classifying ? "・辨識說話者中…" : `・${state.autoSpeaker === "staff" ? "訪問者" : "長者"}`}</strong><p id="live-preview">${escapeHtml(state.liveTranscript || "聆聽中…")}</p></div>` : ""}
         <button class="mic ${state.listening ? "active" : ""}" type="button" id="listen" aria-label="${state.listening ? "停止錄音" : "開始錄音"}" ${state.paused || state.interviewEnded ? "disabled" : ""}><span>${state.listening ? "■" : "🎙"}</span><small>${state.listening ? "停止錄音" : "開始錄音"}</small></button>
         ${state.status ? `<p class="status-message" role="status">${escapeHtml(state.status)}</p>` : ""}
       </section>
@@ -1023,20 +1152,10 @@ function render() {
     handleTranscript(text);
   });
   document.querySelector("#clear").addEventListener("click", () => {
-    if (confirm("確定清除本次逐字稿及未確認摘要？")) {
-      state.messages = [];
-      state.suggestions = [];
-      state.interviewEnded = false;
-      state.paused = false;
-      if (!state.story?.confirmed) {
-        state.story = null;
-        saveStory();
-      }
-      state.status = "已清除本次逐字稿。";
-      localStorage.removeItem(INTERVIEW_ENDED_KEY);
-      save();
-      render();
-    }
+    if (confirm("確定清除本次逐字稿及未確認摘要？")) clearTranscript();
+  });
+  document.querySelector("#clear-transcript")?.addEventListener("click", () => {
+    if (confirm("確定清除本次逐字稿及未確認摘要？")) clearTranscript();
   });
   document.querySelector("#photo-form")?.addEventListener("submit", (event) => {
     event.preventDefault();
